@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chat App</title>
+  <style>
+    #messages { list-style-type: none; margin: 0; padding: 0; }
+    #messages li { padding: 8px; margin-bottom: 8px; border-bottom: 1px solid #ddd; }
+    #messageInput { width: 100%; padding: 10px; }
+  </style>
+</head>
+<body>
+  <div>
+    <select id="groupSelect"></select>
+  </div>
+  <ul id="messages"></ul>
+  <form id="messageForm">
+    <input id="messageInput" autocomplete="off" placeholder="Type a message..." /><button>Send</button>
+  </form>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    const form = document.getElementById('messageForm');
+    const input = document.getElementById('messageInput');
+    const messages = document.getElementById('messages');
+    const groupSelect = document.getElementById('groupSelect');
+
+    let currentGroup = null;
+    let userId = null;
+
+    // Get the user ID from the session
+    fetch('/session').then(res => res.json()).then(session => {
+      userId = session.user.id;
+    });
+
+    fetch('/groups').then(res => {
+      if (res.status === 401) {
+        window.location.href = '/login.html';
+      } else {
+        return res.json();
+      }
+    }).then(groups => {
+      groups.forEach(group => {
+        const option = document.createElement('option');
+        option.value = group.id;
+        option.textContent = group.name;
+        groupSelect.appendChild(option);
+      });
+    });
+
+    groupSelect.addEventListener('change', () => {
+      currentGroup = groupSelect.value;
+      socket.emit('join group', currentGroup);
+    });
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (input.value && currentGroup) {
+          console.log('Sending message:', input.value);  // Add this line
+          socket.emit('chat message', { groupId: currentGroup, userId, msg: input.value });
+          input.value = '';
+        }
+      });
+      
+
+      socket.on('load messages', (messages) => {
+        messages.forEach(({ userId, content }) => {
+          const item = document.createElement('li');
+          item.textContent = `User ${userId}: ${content}`;
+          messages.appendChild(item);  // Fix this line (should be `messages`, not `messagesList`)
+        });
+      });
+      
+      
+      socket.on('chat message', ({ userId, msg }) => {
+        const item = document.createElement('li');
+        item.textContent = `User ${userId}: ${msg}`;
+        messages.appendChild(item);  // Fix this line (should be `messages`, not `messagesList`)
+        window.scrollTo(0, document.body.scrollHeight);
+      });
+      
+      
+  </script>
+</body>
+</html>
