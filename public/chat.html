@@ -3,20 +3,82 @@
 <head>
   <title>Chat App</title>
   <style>
-    #messages { list-style-type: none; margin: 0; padding: 0; }
-    #messages li { padding: 8px; margin-bottom: 8px; border-bottom: 1px solid #ddd; }
-    #messageInput { width: 100%; padding: 10px; }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    #chat-container {
+      width: 80%;
+      max-width: 800px;
+      background-color: #fff;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    #groupSelect {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-bottom: 1px solid #ddd;
+      font-size: 16px;
+    }
+    #messages {
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+      height: 400px;
+      overflow-y: auto;
+      border-bottom: 1px solid #ddd;
+    }
+    #messages li {
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+    }
+    #messageInput {
+      width: calc(100% - 20px);
+      padding: 10px;
+      margin: 10px;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .message-header {
+      font-weight: bold;
+    }
+    .message-content {
+      margin-left: 20px;
+    }
   </style>
 </head>
 <body>
-  <div>
+  <div id="chat-container">
     <select id="groupSelect"></select>
+    <ul id="messages"></ul>
+    <form id="messageForm">
+      <input id="messageInput" autocomplete="off" placeholder="Type a message..." />
+      <button type="submit">Send</button>
+    </form>
   </div>
-  <ul id="messages"></ul>
-  <form id="messageForm">
-    <input id="messageInput" autocomplete="off" placeholder="Type a message..." /><button>Send</button>
-  </form>
-
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
@@ -29,7 +91,6 @@
     let currentGroup = null;
     let userId = null;
 
-    // Get the user ID from the session
     fetch('/session').then(res => res.json()).then(session => {
       userId = session.user.id;
     });
@@ -52,35 +113,31 @@
     groupSelect.addEventListener('change', () => {
       currentGroup = groupSelect.value;
       socket.emit('join group', currentGroup);
+      messages.innerHTML = ''; // Clear previous messages
     });
 
     form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        if (input.value && currentGroup) {
-          console.log('Sending message:', input.value);  // Add this line
-          socket.emit('chat message', { groupId: currentGroup, userId, msg: input.value });
-          input.value = '';
-        }
-      });
-      
+      e.preventDefault();
+      if (input.value && currentGroup) {
+        socket.emit('chat message', { groupId: currentGroup, userId, msg: input.value });
+        input.value = '';
+      }
+    });
 
-      socket.on('load messages', (messages) => {
-        messages.forEach(({ userId, content }) => {
-          const item = document.createElement('li');
-          item.textContent = `User ${userId}: ${content}`;
-          messages.appendChild(item);  // Fix this line (should be `messages`, not `messagesList`)
-        });
-      });
-      
-      
-      socket.on('chat message', ({ userId, msg }) => {
+    socket.on('load messages', (loadedMessages) => {
+      loadedMessages.forEach(({ userId, content }) => {
         const item = document.createElement('li');
-        item.textContent = `User ${userId}: ${msg}`;
-        messages.appendChild(item);  // Fix this line (should be `messages`, not `messagesList`)
-        window.scrollTo(0, document.body.scrollHeight);
+        item.innerHTML = `<span class="message-header">User ${userId}:</span> <span class="message-content">${content}</span>`;
+        messages.appendChild(item);
       });
-      
-      
+    });
+
+    socket.on('chat message', ({ userId, msg }) => {
+      const item = document.createElement('li');
+      item.innerHTML = `<span class="message-header">User ${userId}:</span> <span class="message-content">${msg}</span>`;
+      messages.appendChild(item);
+      window.scrollTo(0, document.body.scrollHeight);
+    });
   </script>
 </body>
 </html>

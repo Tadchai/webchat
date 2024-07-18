@@ -86,9 +86,11 @@ app.use(session({
     console.log('New client connected');
   
     socket.on('join group', async (groupId) => {
+      socket.leaveAll();
+      socket.join(groupId);
+  
       const [groupRows] = await db.execute('SELECT id FROM chat_groups WHERE id = ?', [groupId]);
       if (groupRows.length > 0) {
-        socket.join(groupId);
         const [messages] = await db.execute('SELECT * FROM messages WHERE group_id = ?', [groupId]);
         socket.emit('load messages', messages);
       } else {
@@ -97,7 +99,6 @@ app.use(session({
     });
   
     socket.on('chat message', async ({ groupId, userId, msg }) => {
-      console.log('Received message:', msg); 
       try {
         const [groupRows] = await db.execute('SELECT id FROM chat_groups WHERE id = ?', [groupId]);
         if (groupRows.length > 0) {
@@ -116,6 +117,7 @@ app.use(session({
       console.log('Client disconnected');
     });
   });
+  
   
   
 
