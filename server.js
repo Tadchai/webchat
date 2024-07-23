@@ -9,7 +9,6 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
@@ -86,11 +85,9 @@ app.use(session({
     console.log('New client connected');
   
     socket.on('join group', async (groupId) => {
-      socket.leaveAll();
-      socket.join(groupId);
-  
       const [groupRows] = await db.execute('SELECT id FROM chat_groups WHERE id = ?', [groupId]);
       if (groupRows.length > 0) {
+        socket.join(groupId);
         const [messages] = await db.execute('SELECT * FROM messages WHERE group_id = ?', [groupId]);
         socket.emit('load messages', messages);
       } else {
@@ -112,14 +109,26 @@ app.use(session({
         console.error(err);
       }
     });
+
+    socket.on('file message', async ({ groupId, userId, file, filename, filetype }) => {
+      try {
+        const [groupRows] = await db.execute('SELECT id FROM chat_groups WHERE id = ?', [groupId]);
+        if (groupRows.length > 0) {
+          const query = 'INSERT INTO messages (group_id, user_id, content, filetype) VALUES (?, ?, ?, ?)';
+          await db.execute(query, [groupId, userId, file, filetype]);
+          io.to(groupId).emit('file message', { userId, file, filename, filetype });
+        } else {
+          socket.emit('error', 'Invalid group ID');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    });
   
     socket.on('disconnect', () => {
       console.log('Client disconnected');
     });
   });
-  
-  
-  
 
   server.listen(3000, () => {
     console.log('Server is running on port 3000');

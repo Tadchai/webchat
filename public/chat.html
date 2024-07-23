@@ -68,6 +68,16 @@
     .message-content {
       margin-left: 20px;
     }
+    .online {
+      color: green;
+    }
+    .offline {
+      color: red;
+    }
+    .image-message img {
+      max-width: 100%;
+      border-radius: 5px;
+    }
   </style>
 </head>
 <body>
@@ -78,6 +88,12 @@
       <input id="messageInput" autocomplete="off" placeholder="Type a message..." />
       <button type="submit">Send</button>
     </form>
+    <input type="text" id="searchInput" placeholder="Search messages..." />
+    <form id="fileForm">
+      <input type="file" id="fileInput" accept="image/*,video/*,application/pdf" />
+      <button type="submit">Send File</button>
+    </form>
+    <ul id="userList"></ul>
   </div>
   <script src="/socket.io/socket.io.js"></script>
   <script>
@@ -87,9 +103,32 @@
     const input = document.getElementById('messageInput');
     const messages = document.getElementById('messages');
     const groupSelect = document.getElementById('groupSelect');
+    const searchInput = document.getElementById('searchInput');
+    const fileForm = document.getElementById('fileForm');
+    const fileInput = document.getElementById('fileInput');
+    const userList = document.getElementById('userList');
 
     let currentGroup = null;
     let userId = null;
+
+    // Function to scroll to the bottom of the chat
+    function scrollToBottom() {
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    // Function to send a browser notification
+    function sendNotification(title, body) {
+      if (Notification.permission === 'granted') {
+        new Notification(title, { body });
+      }
+    }
+
+    // Request notification permission on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      if (Notification.permission !== 'granted') {
+        Notification.requestPermission();
+      }
+    });
 
     fetch('/session').then(res => res.json()).then(session => {
       userId = session.user.id;
@@ -124,19 +163,95 @@
       }
     });
 
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault(); // Prevent newline
+        if (input.value && currentGroup) {
+          socket.emit('chat message', { groupId: currentGroup, userId, msg: input.value });
+          input.value = '';
+        }
+      }
+    });
+
+    searchInput.addEventListener('input', (e) => {
+      const searchTerm = e.target.value.toLowerCase();
+      const messagesList = document.getElementById('messages');
+      const messages = messagesList.querySelectorAll('li');
+
+      messages.forEach(message => {
+        const text = message.innerText.toLowerCase();
+        if (text.includes(searchTerm)) {
+          message.style.display = '';
+        } else {
+          message.style.display = 'none';
+        }
+      });
+    });
+
+    fileForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const file = fileInput.files[0];
+      if (file && currentGroup) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          socket.emit('file message', { groupId: currentGroup, userId, file: reader.result, filename: file.name, filetype: file.type });
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
     socket.on('load messages', (loadedMessages) => {
-      loadedMessages.forEach(({ userId, content }) => {
+      loadedMessages.forEach(({ userId, content, filetype }) => {
         const item = document.createElement('li');
-        item.innerHTML = `<span class="message-header">User ${userId}:</span> <span class="message-content">${content}</span>`;
+        if (filetype && filetype.startsWith('image/')) {
+          item.className = 'image-message';
+          item.innerHTML = `<span class="message-header">User ${userId}:</span> <img src="${content}" alt="Image">`;
+        } else {
+          item.innerHTML = `<span class="message-header">User ${userId}:</span> <span class="message-content">${content}</span>`;
+        }
         messages.appendChild(item);
       });
+      scrollToBottom(); // Scroll to bottom when loading messages
     });
 
     socket.on('chat message', ({ userId, msg }) => {
       const item = document.createElement('li');
       item.innerHTML = `<span class="message-header">User ${userId}:</span> <span class="message-content">${msg}</span>`;
       messages.appendChild(item);
-      window.scrollTo(0, document.body.scrollHeight);
+      scrollToBottom(); // Scroll to bottom when a new message is received
+
+      // Send notification if the current group is not visible
+      if (document.hidden) {
+        sendNotification(`New message from User ${userId}`, msg);
+      }
+    });
+
+    socket.on('group users', (users) => {
+      userList.innerHTML = ''; // Clear previous users
+      users.forEach(user => {
+        const item = document.createElement('li');
+        item.id = `user-${user.id}`;
+        item.textContent = `User ${user.id}: ${user.username}`;
+        item.className = user.status ? 'online' : 'offline';
+        userList.appendChild(item);
+      });
+    });
+
+    socket.on('user status', ({ userId, status }) => {
+      const userStatus = document.getElementById(`user-${userId}`);
+      userStatus.className = status ? 'online' : 'offline';
+    });
+
+    socket.on('file message', ({ userId, file, filename, filetype }) => {
+      const item = document.createElement('li');
+      if (filetype.startsWith('image/')) {
+        item.className = 'image-message';
+        item.innerHTML = `<span class="message-header">User ${userId}:</span> <img src="${file}" alt="Image">`;
+      } else {
+        item.innerHTML = `<span class="message-header">User ${userId}:</span> <a href="${file}" download="${filename}">Download ${filename}</a>`;
+      }
+      messages.appendChild(item);
+      scrollToBottom();
     });
   </script>
 </body>
