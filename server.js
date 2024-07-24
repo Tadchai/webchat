@@ -9,8 +9,11 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
+// ใช้ bodyParser เพื่อแปลงข้อมูล JSON และการใช้ URL-encoded
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// ใช้ express-session เพื่อจัดการเซสชันของผู้ใช้
 app.use(session({
   secret: 'your_secret_key',
   resave: false,
@@ -18,6 +21,7 @@ app.use(session({
 }));
 
 (async () => {
+  // การเชื่อมต่อกับฐานข้อมูล MySQL
   const db = await mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -27,8 +31,10 @@ app.use(session({
 
   console.log('Connected to MySQL database');
 
+  // ตั้งค่าให้ Express ใช้โฟลเดอร์ 'public' สำหรับไฟล์สาธารณะ
   app.use(express.static('public'));
 
+  // เส้นทางสำหรับตรวจสอบเซสชันของผู้ใช้
   app.get('/session', (req, res) => {
     if (req.session.user) {
       res.json({ user: req.session.user });
@@ -36,8 +42,8 @@ app.use(session({
       res.status(401).send('Unauthorized');
     }
   });
-  
 
+  // เส้นทางหลัก สำหรับหน้าแรก
   app.get('/', (req, res) => {
     if (!req.session.user) {
       res.redirect('/login.html');
@@ -45,12 +51,13 @@ app.use(session({
       res.sendFile(__dirname + '/public/chat.html');
     }
   });
-  
+
+  // เส้นทางสำหรับหน้าเข้าสู่ระบบ
   app.get('/login.html', (req, res) => {
     res.sendFile(__dirname + '/public/login.html');
   });
-  
 
+  // เส้นทางสำหรับการลงทะเบียนผู้ใช้ใหม่
   app.post('/register', async (req, res) => {
     const { username, password } = req.body;
     const query = 'INSERT INTO users (username, password) VALUES (?, ?)';
@@ -58,6 +65,7 @@ app.use(session({
     res.send('User registered');
   });
 
+  // เส้นทางสำหรับการเข้าสู่ระบบ
   app.post('/login', async (req, res) => {
     const { username, password } = req.body;
     const query = 'SELECT * FROM users WHERE username = ? AND password = ?';
@@ -71,6 +79,7 @@ app.use(session({
     }
   });
 
+  // เส้นทางสำหรับดึงข้อมูลกลุ่มแชท
   app.get('/groups', async (req, res) => {
     if (!req.session.user) {
       return res.status(401).send('Unauthorized');
@@ -80,10 +89,12 @@ app.use(session({
     const [rows] = await db.execute(query);
     res.json(rows);
   });
-  
+
+  // ตั้งค่า Socket.IO เพื่อจัดการการเชื่อมต่อแบบเรียลไทม์
   io.on('connection', (socket) => {
     console.log('New client connected');
-  
+
+    // เมื่อผู้ใช้เข้าร่วมกลุ่มแชท
     socket.on('join group', async (groupId) => {
       const [groupRows] = await db.execute('SELECT id FROM chat_groups WHERE id = ?', [groupId]);
       if (groupRows.length > 0) {
@@ -94,7 +105,8 @@ app.use(session({
         socket.emit('error', 'Invalid group ID');
       }
     });
-  
+
+    // เมื่อมีการส่งข้อความแชทในกลุ่ม
     socket.on('chat message', async ({ groupId, userId, msg }) => {
       try {
         const [groupRows] = await db.execute('SELECT id FROM chat_groups WHERE id = ?', [groupId]);
@@ -110,6 +122,7 @@ app.use(session({
       }
     });
 
+    // เมื่อมีการส่งไฟล์ในกลุ่มแชท
     socket.on('file message', async ({ groupId, userId, file, filename, filetype }) => {
       try {
         const [groupRows] = await db.execute('SELECT id FROM chat_groups WHERE id = ?', [groupId]);
@@ -124,12 +137,14 @@ app.use(session({
         console.error(err);
       }
     });
-  
+
+    // เมื่อผู้ใช้ตัดการเชื่อมต่อ
     socket.on('disconnect', () => {
       console.log('Client disconnected');
     });
   });
 
+  // เริ่มต้นเซิร์ฟเวอร์ที่พอร์ต 3000
   server.listen(3000, () => {
     console.log('Server is running on port 3000');
   });

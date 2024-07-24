@@ -116,8 +116,10 @@
   </div>
   <script src="/socket.io/socket.io.js"></script>
   <script>
+    // สร้างการเชื่อมต่อ Socket.IO
     const socket = io();
 
+    // เรียกใช้ element ต่างๆ จาก HTML
     const form = document.getElementById('messageForm');
     const input = document.getElementById('messageInput');
     const messages = document.getElementById('messages');
@@ -130,29 +132,31 @@
     let currentGroup = null;
     let userId = null;
 
-    // Function to scroll to the bottom of the chat
+    // ฟังก์ชันสำหรับเลื่อนหน้าจอไปด้านล่างสุดของการแชท
     function scrollToBottom() {
       messages.scrollTop = messages.scrollHeight;
     }
 
-    // Function to send a browser notification
+    // ฟังก์ชันสำหรับส่งการแจ้งเตือนผ่านเบราว์เซอร์
     function sendNotification(title, body) {
       if (Notification.permission === 'granted') {
         new Notification(title, { body });
       }
     }
 
-    // Request notification permission on page load
+    // ขออนุญาตการแจ้งเตือนเมื่อโหลดหน้าเพจ
     document.addEventListener('DOMContentLoaded', () => {
       if (Notification.permission !== 'granted') {
         Notification.requestPermission();
       }
     });
 
+    // ตรวจสอบเซสชันของผู้ใช้
     fetch('/session').then(res => res.json()).then(session => {
       userId = session.user.id;
     });
 
+    // ดึงข้อมูลกลุ่มแชท
     fetch('/groups').then(res => {
       if (res.status === 401) {
         window.location.href = '/login.html';
@@ -168,12 +172,14 @@
       });
     });
 
+    // เปลี่ยนกลุ่มแชทที่เลือก
     groupSelect.addEventListener('change', () => {
       currentGroup = groupSelect.value;
       socket.emit('join group', currentGroup);
-      messages.innerHTML = ''; // Clear previous messages
+      messages.innerHTML = ''; // ลบข้อความเก่าออก
     });
 
+    // ส่งข้อความแชทเมื่อส่งฟอร์ม
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       if (input.value && currentGroup) {
@@ -182,9 +188,10 @@
       }
     });
 
+    // ส่งข้อความแชทเมื่อกดปุ่ม Enter
     input.addEventListener('keypress', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault(); // Prevent newline
+        e.preventDefault(); // ป้องกันการขึ้นบรรทัดใหม่
         if (input.value && currentGroup) {
           socket.emit('chat message', { groupId: currentGroup, userId, msg: input.value });
           input.value = '';
@@ -192,6 +199,7 @@
       }
     });
 
+    // ค้นหาข้อความแชท
     searchInput.addEventListener('input', (e) => {
       const searchTerm = e.target.value.toLowerCase();
       const messagesList = document.getElementById('messages');
@@ -207,6 +215,7 @@
       });
     });
 
+    // ส่งไฟล์ในแชท
     fileForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const file = fileInput.files[0];
@@ -219,6 +228,7 @@
       }
     });
 
+    // โหลดข้อความแชทเมื่อเข้าร่วมกลุ่ม
     socket.on('load messages', (loadedMessages) => {
       loadedMessages.forEach(({ userId, content, filetype }) => {
         const item = document.createElement('li');
@@ -230,23 +240,25 @@
         }
         messages.appendChild(item);
       });
-      scrollToBottom(); // Scroll to bottom when loading messages
+      scrollToBottom(); // เลื่อนหน้าจอไปด้านล่างสุดเมื่อโหลดข้อความ
     });
 
+    // รับข้อความแชทใหม่
     socket.on('chat message', ({ userId, msg }) => {
       const item = document.createElement('li');
       item.innerHTML = `<span class="message-header">User ${userId}:</span> <span class="message-content">${msg}</span>`;
       messages.appendChild(item);
-      scrollToBottom(); // Scroll to bottom when a new message is received
+      scrollToBottom(); // เลื่อนหน้าจอไปด้านล่างสุดเมื่อรับข้อความใหม่
 
-      // Send notification if the current group is not visible
+      // ส่งการแจ้งเตือนหากหน้าจอไม่อยู่ในโฟกัส
       if (document.hidden) {
         sendNotification(`New message from User ${userId}`, msg);
       }
     });
 
+    // อัปเดตรายชื่อผู้ใช้ในกลุ่ม
     socket.on('group users', (users) => {
-      userList.innerHTML = ''; // Clear previous users
+      userList.innerHTML = ''; // ลบรายชื่อผู้ใช้เก่า
       users.forEach(user => {
         const item = document.createElement('li');
         item.id = `user-${user.id}`;
@@ -256,11 +268,13 @@
       });
     });
 
+    // อัปเดตสถานะผู้ใช้
     socket.on('user status', ({ userId, status }) => {
       const userStatus = document.getElementById(`user-${userId}`);
       userStatus.className = status ? 'online' : 'offline';
     });
 
+    // รับไฟล์ในแชท
     socket.on('file message', ({ userId, file, filename, filetype }) => {
       const item = document.createElement('li');
       if (filetype.startsWith('image/')) {
@@ -270,8 +284,9 @@
         item.innerHTML = `<span class="message-header">User ${userId}:</span> <a href="${file}" download="${filename}">Download ${filename}</a>`;
       }
       messages.appendChild(item);
-      scrollToBottom();
+      scrollToBottom(); // เลื่อนหน้าจอไปด้านล่างสุด
     });
-  </script>
+</script>
+
 </body>
 </html>
