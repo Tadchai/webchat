@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
+  <meta charset="UTF-8">
   <title>Chat App</title>
   <style>
     body {
@@ -13,26 +14,50 @@
       margin: 0;
     }
     #chat-container {
+      display: flex;
       width: 80%;
-      max-width: 800px;
+      max-width: 1000px;
       background-color: #fff;
       border-radius: 10px;
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
       overflow: hidden;
     }
-    #groupSelect {
-      width: 100%;
+    #group-list {
+      width: 30%;
+      border-right: 1px solid #ddd;
       padding: 10px;
-      border: none;
+    }
+    #group-list ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    #group-list li {
+      padding: 10px;
+      margin: 5px 0;
+      cursor: pointer;
+      background-color: #f9f9f9;
+      border-radius: 5px;
+    }
+    #group-list li:hover {
+      background-color: #e9e9e9;
+    }
+    #chat-section {
+      width: 70%;
+      display: flex;
+      flex-direction: column;
+    }
+    #chat-header {
+      padding: 10px;
       border-bottom: 1px solid #ddd;
-      font-size: 16px;
+      font-size: 18px;
+      font-weight: bold;
     }
     #messages {
       list-style-type: none;
       margin: 0;
       padding: 0;
-      height: 400px;
-      overflow-y: auto;
+      height: 600px; /* กำหนดความสูงคงที่ */
+      overflow-y: auto; /* ทำให้สามารถเลื่อนดูได้ */
       border-bottom: 1px solid #ddd;
     }
     #messages li {
@@ -41,17 +66,21 @@
       border-radius: 5px;
       background-color: #f9f9f9;
     }
-    #messageInput {
-      width: calc(100% - 20px);
+    #messageForm {
+      display: flex;
       padding: 10px;
-      margin: 10px;
+      border-top: 1px solid #ddd;
+    }
+    #messageInput {
+      flex: 1;
+      padding: 10px;
       border-radius: 5px;
       border: 1px solid #ddd;
       font-size: 16px;
     }
     button {
       padding: 10px 20px;
-      margin: 10px;
+      margin-left: 10px;
       border: none;
       border-radius: 5px;
       background-color: #007bff;
@@ -62,57 +91,30 @@
     button:hover {
       background-color: #0056b3;
     }
-    .message-header {
-      font-weight: bold;
-    }
-    .message-content {
-      margin-left: 20px;
-    }
-    .online {
-      color: green;
-    }
-    .offline {
-      color: red;
-    }
-    .image-message img {
-      max-width: 100%;
+    #messages img {
+      max-width: 200px;
+      max-height: 200px;
       border-radius: 5px;
     }
-    #messages { 
-      list-style-type: none; 
-      margin: 0; 
-      padding: 0; 
-    }
-    #messages li { 
-      padding: 8px; 
-      margin-bottom: 8px; 
-      border-bottom: 1px solid #ddd; 
-    }
-    #messageInput { 
-      width: 100%; 
-      padding: 10px; 
-    }
-    .image-message img { 
-      max-width: 100%; 
-      max-height: 300px; 
-      object-fit: cover; 
-    }
+    
   </style>
 </head>
 <body>
   <div id="chat-container">
-    <select id="groupSelect"></select>
-    <ul id="messages"></ul>
-    <form id="messageForm">
-      <input id="messageInput" autocomplete="off" placeholder="Type a message..." />
-      <button type="submit">Send</button>
-    </form>
-    <input type="text" id="searchInput" placeholder="Search messages..." />
-    <form id="fileForm">
-      <input type="file" id="fileInput" accept="image/*,video/*,application/pdf" />
-      <button type="submit">Send File</button>
-    </form>
-    <ul id="userList"></ul>
+    <div id="group-list">
+      <h3>เลือกห้องแชท</h3><a href="/login">logout</a>
+      <ul id="groupSelect"></ul>
+    </div>
+    <div id="chat-section">
+      <div id="chat-header">ชื่อห้องแชท</div>
+      <ul id="messages"></ul>
+      <form id="messageForm" enctype="multipart/form-data">
+        <input id="messageInput" autocomplete="off" placeholder="พิมพ์ข้อความของคุณ..." />
+        <input type="file" id="imageInput" accept="image/*" />
+        <button type="submit">ส่ง</button>
+      </form>
+      
+    </div>
   </div>
   <script src="/socket.io/socket.io.js"></script>
   <script>
@@ -124,10 +126,8 @@
     const input = document.getElementById('messageInput');
     const messages = document.getElementById('messages');
     const groupSelect = document.getElementById('groupSelect');
-    const searchInput = document.getElementById('searchInput');
-    const fileForm = document.getElementById('fileForm');
-    const fileInput = document.getElementById('fileInput');
-    const userList = document.getElementById('userList');
+    const chatHeader = document.getElementById('chat-header');
+    const imageInput = document.getElementById('imageInput');
 
     let currentGroup = null;
     let userId = null;
@@ -165,18 +165,21 @@
       }
     }).then(groups => {
       groups.forEach(group => {
-        const option = document.createElement('option');
-        option.value = group.id;
-        option.textContent = group.name;
-        groupSelect.appendChild(option);
+        const li = document.createElement('li');
+        li.textContent = group.name;
+        li.dataset.groupId = group.id;
+        groupSelect.appendChild(li);
       });
     });
 
     // เปลี่ยนกลุ่มแชทที่เลือก
-    groupSelect.addEventListener('change', () => {
-      currentGroup = groupSelect.value;
-      socket.emit('join group', currentGroup);
-      messages.innerHTML = ''; // ลบข้อความเก่าออก
+    groupSelect.addEventListener('click', (e) => {
+      if (e.target.tagName === 'LI') {
+        currentGroup = e.target.dataset.groupId;
+        chatHeader.textContent = e.target.textContent;
+        socket.emit('join group', currentGroup);
+        messages.innerHTML = ''; // ลบข้อความเก่าออก
+      }
     });
 
     // ส่งข้อความแชทเมื่อส่งฟอร์ม
@@ -185,6 +188,17 @@
       if (input.value && currentGroup) {
         socket.emit('chat message', { groupId: currentGroup, userId, msg: input.value });
         input.value = '';
+      }
+
+      // อัปโหลดไฟล์รูปภาพ
+      if (imageInput.files.length > 0 && currentGroup) {
+        const file = imageInput.files[0];
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          socket.emit('file message', { groupId: currentGroup, userId, file: event.target.result, filename: file.name, filetype: file.type });
+          imageInput.value = ''; // ล้าง input หลังจากส่งไฟล์
+        };
+        reader.readAsDataURL(file);
       }
     });
 
@@ -196,35 +210,6 @@
           socket.emit('chat message', { groupId: currentGroup, userId, msg: input.value });
           input.value = '';
         }
-      }
-    });
-
-    // ค้นหาข้อความแชท
-    searchInput.addEventListener('input', (e) => {
-      const searchTerm = e.target.value.toLowerCase();
-      const messagesList = document.getElementById('messages');
-      const messages = messagesList.querySelectorAll('li');
-
-      messages.forEach(message => {
-        const text = message.innerText.toLowerCase();
-        if (text.includes(searchTerm)) {
-          message.style.display = '';
-        } else {
-          message.style.display = 'none';
-        }
-      });
-    });
-
-    // ส่งไฟล์ในแชท
-    fileForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const file = fileInput.files[0];
-      if (file && currentGroup) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          socket.emit('file message', { groupId: currentGroup, userId, file: reader.result, filename: file.name, filetype: file.type });
-        };
-        reader.readAsDataURL(file);
       }
     });
 
@@ -256,24 +241,6 @@
       }
     });
 
-    // อัปเดตรายชื่อผู้ใช้ในกลุ่ม
-    socket.on('group users', (users) => {
-      userList.innerHTML = ''; // ลบรายชื่อผู้ใช้เก่า
-      users.forEach(user => {
-        const item = document.createElement('li');
-        item.id = `user-${user.id}`;
-        item.textContent = `User ${user.id}: ${user.username}`;
-        item.className = user.status ? 'online' : 'offline';
-        userList.appendChild(item);
-      });
-    });
-
-    // อัปเดตสถานะผู้ใช้
-    socket.on('user status', ({ userId, status }) => {
-      const userStatus = document.getElementById(`user-${userId}`);
-      userStatus.className = status ? 'online' : 'offline';
-    });
-
     // รับไฟล์ในแชท
     socket.on('file message', ({ userId, file, filename, filetype }) => {
       const item = document.createElement('li');
@@ -286,7 +253,6 @@
       messages.appendChild(item);
       scrollToBottom(); // เลื่อนหน้าจอไปด้านล่างสุด
     });
-</script>
-
+  </script>
 </body>
 </html>

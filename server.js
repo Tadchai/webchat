@@ -53,7 +53,7 @@ app.use(session({
   });
 
   // เส้นทางสำหรับหน้าเข้าสู่ระบบ
-  app.get('/login.html', (req, res) => {
+  app.get('/login', (req, res) => {
     res.sendFile(__dirname + '/public/login.html');
   });
 
