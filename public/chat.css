@@ -1,0 +1,93 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+  #chat-container {
+    display: flex;
+    width: 80%;
+    max-width: 1000px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+  }
+  #group-list {
+    width: 30%;
+    border-right: 1px solid #ddd;
+    padding: 10px;
+  }
+  #group-list ul {
+    list-style-type: none;
+    padding: 0;
+  }
+  #group-list li {
+    padding: 10px;
+    margin: 5px 0;
+    cursor: pointer;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+  }
+  #group-list li:hover {
+    background-color: #e9e9e9;
+  }
+  #chat-section {
+    width: 70%;
+    display: flex;
+    flex-direction: column;
+  }
+  #chat-header {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    font-size: 18px;
+    font-weight: bold;
+  }
+  #messages {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    height: 600px; /* กำหนดความสูงคงที่ */
+    overflow-y: auto; /* ทำให้สามารถเลื่อนดูได้ */
+    border-bottom: 1px solid #ddd;
+  }
+  #messages li {
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+  }
+  #messageForm {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #ddd;
+  }
+  #messageInput {
+    flex: 1;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    font-size: 16px;
+  }
+  button {
+    padding: 10px 20px;
+    margin-left: 10px;
+    border: none;
+    border-radius: 5px;
+    background-color: #007bff;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  button:hover {
+    background-color: #0056b3;
+  }
+  #messages img {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 5px;
+  }
+  
