@@ -22,6 +22,7 @@
       
     </div>
   </div>
+  <div id="notification-container"></div>
   <script src="/socket.io/socket.io.js"></script>
   <script>
     // สร้างการเชื่อมต่อ Socket.IO
@@ -56,6 +57,33 @@
         Notification.requestPermission();
       }
     });
+
+    // ฟังก์ชันสำหรับแสดงการแจ้งเตือนในเว็บ
+    function showWebNotification(message) {
+      const notificationContainer = document.getElementById('notification-container');
+      const notification = document.createElement('div');
+      notification.className = 'web-notification';
+      notification.innerHTML = `
+        <div class="notification-content">
+          <span>${message}</span>
+          <button class="close-notification">&times;</button>
+        </div>
+      `;
+
+      notificationContainer.appendChild(notification);
+
+      // ลบการแจ้งเตือนเมื่อคลิกปุ่มปิด
+      notification.querySelector('.close-notification').addEventListener('click', () => {
+        notificationContainer.removeChild(notification);
+      });
+
+      // ลบการแจ้งเตือนหลังจาก 5 วินาที
+      setTimeout(() => {
+        if (notificationContainer.contains(notification)) {
+          notificationContainer.removeChild(notification);
+        }
+      }, 5000);
+    }
 
     // ตรวจสอบเซสชันของผู้ใช้
     fetch('/session').then(res => res.json()).then(session => {
@@ -121,43 +149,54 @@
 
     // โหลดข้อความแชทเมื่อเข้าร่วมกลุ่ม
     socket.on('load messages', (loadedMessages) => {
-      loadedMessages.forEach(({ userId, content, filetype }) => {
+      loadedMessages.forEach(({ username, content, filetype }) => {
         const item = document.createElement('li');
         if (filetype && filetype.startsWith('image/')) {
           item.className = 'image-message';
-          item.innerHTML = `<span class="message-header">User ${userId}:</span> <img src="${content}" alt="Image">`;
+          item.innerHTML = `<span class="message-header">${username}:</span> <img src="${content}" alt="Image">`;
         } else {
-          item.innerHTML = `<span class="message-header">User ${userId}:</span> <span class="message-content">${content}</span>`;
+          item.innerHTML = `<span class="message-header">${username}:</span> <span class="message-content">${content}</span>`;
         }
         messages.appendChild(item);
       });
-      scrollToBottom(); // เลื่อนหน้าจอไปด้านล่างสุดเมื่อโหลดข้อความ
-    });
+      scrollToBottom();
+    });    
 
-    // รับข้อความแชทใหม่
-    socket.on('chat message', ({ userId, msg }) => {
+     // รับข้อความแชทใหม่
+    socket.on('chat message', ({ userId, username, msg }) => {
       const item = document.createElement('li');
-      item.innerHTML = `<span class="message-header">User ${userId}:</span> <span class="message-content">${msg}</span>`;
+      item.innerHTML = `<span class="message-header">${username}:</span> <span class="message-content">${msg}</span>`;
       messages.appendChild(item);
       scrollToBottom(); // เลื่อนหน้าจอไปด้านล่างสุดเมื่อรับข้อความใหม่
 
+      // แสดงการแจ้งเตือนในเว็บ
+      showWebNotification(`ข้อความใหม่จาก ${username}: ${msg}`);
+
       // ส่งการแจ้งเตือนหากหน้าจอไม่อยู่ในโฟกัส
       if (document.hidden) {
-        sendNotification(`New message from User ${userId}`, msg);
+        sendNotification(`ข้อความใหม่จาก ${username}`, msg);
       }
     });
 
     // รับไฟล์ในแชท
-    socket.on('file message', ({ userId, file, filename, filetype }) => {
+    socket.on('file message', ({ userId, username, file, filename, filetype }) => {
       const item = document.createElement('li');
       if (filetype.startsWith('image/')) {
         item.className = 'image-message';
-        item.innerHTML = `<span class="message-header">User ${userId}:</span> <img src="${file}" alt="Image">`;
+        item.innerHTML = `<span class="message-header">${username}:</span> <img src="${file}" alt="Image">`;
       } else {
-        item.innerHTML = `<span class="message-header">User ${userId}:</span> <a href="${file}" download="${filename}">Download ${filename}</a>`;
+        item.innerHTML = `<span class="message-header">${username}:</span> <a href="${file}" download="${filename}">Download ${filename}</a>`;
       }
       messages.appendChild(item);
       scrollToBottom(); // เลื่อนหน้าจอไปด้านล่างสุด
+
+      // แสดงการแจ้งเตือนในเว็บ
+      showWebNotification(`ไฟล์ใหม่จาก ${username}: ${filename}`);
+
+      // ส่งการแจ้งเตือนหากหน้าจอไม่อยู่ในโฟกัส
+      if (document.hidden) {
+        sendNotification(`ไฟล์ใหม่จาก ${username}`, filename);
+      }
     });
   </script>
 </body>
